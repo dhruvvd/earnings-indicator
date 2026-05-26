@@ -5,13 +5,13 @@ Predict EPS beat/miss (`eps_status`) from quarterly financial features using PyT
 ## Prerequisites
 
 - Python 3.12
-- PostgreSQL
+- PostgreSQL 14+ (local install; Homebrew on macOS works well)
 - [Git LFS](https://git-lfs.com/) (required for the large raw data file)
 
 ## Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/dhruvvd/earnings-indicator.git
 cd earnings-indicator
 git lfs install
 git lfs pull
@@ -21,14 +21,47 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# Edit .env with your PostgreSQL connection string
+# Edit .env with your PostgreSQL connection string (see below)
 ```
 
-Create a PostgreSQL database named `findata`, then apply the schema:
+### PostgreSQL (macOS / Homebrew)
+
+This project expects a local database named `findata`. [`fdb.sql`](fdb.sql) creates the tables and feature-engineering SQL used by the pipeline.
+
+Install and start PostgreSQL:
 
 ```bash
+brew install postgresql@16
+brew services start postgresql@16
+```
+
+Add `psql` to your PATH if Homebrew prompts you to (it prints the exact command after install).
+
+Create a database and user, then load the schema:
+
+```bash
+# Open a psql shell as your macOS user (default Homebrew superuser)
+psql postgres
+
+# Inside psql:
+CREATE DATABASE findata;
+CREATE USER your_user WITH PASSWORD 'your_password';
+GRANT ALL PRIVILEGES ON DATABASE findata TO your_user;
+\q
+
+# Apply schema (run from the repo root)
 psql -d findata -f fdb.sql
 ```
+
+Set `.env` to match your credentials:
+
+```
+DATABASE_URL=postgresql+psycopg2://your_user:your_password@localhost:5432/findata
+```
+
+On Linux or Windows, use your distro's PostgreSQL install instead of Homebrew; the `CREATE DATABASE` / `psql -f fdb.sql` steps are the same.
+
+You only need to run `fdb.sql` once on a fresh database. Re-running `scrape.py` repopulates the tables.
 
 ## Pipeline
 
