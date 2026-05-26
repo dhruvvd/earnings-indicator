@@ -30,6 +30,7 @@ Use this path if you only want to train/evaluate models. **No PostgreSQL or `.en
 ```bash
 git clone https://github.com/dhruvvd/earnings-indicator.git
 cd earnings-indicator
+git lfs install
 git lfs pull   # required — without this, eps_estimate.csv is a stub pointer
 
 python3.12 -m venv .venv
@@ -56,16 +57,10 @@ Use this path to reload raw Excel/CSV data into PostgreSQL and regenerate `data/
 
 ### 1. Clone and Python environment
 
-Same as quick start steps above, then:
+Same as quick start steps above, then copy the env template (you'll fill in `DATABASE_URL` in step 2):
 
 ```bash
 cp .env.example .env
-```
-
-Edit `.env` with your PostgreSQL credentials:
-
-```
-DATABASE_URL=postgresql+psycopg2://your_user:your_password@localhost:5432/findata
 ```
 
 ### 2. PostgreSQL (macOS / Homebrew)
@@ -78,11 +73,26 @@ brew services start postgresql@18
 
 Add `psql` to your PATH if Homebrew prints instructions after install.
 
-Create the database and an app user:
+Create the database (and optionally a dedicated app user):
 
 ```bash
 psql postgres
 ```
+
+**Option A — use your macOS user (simplest):**
+
+```sql
+CREATE DATABASE findata;
+\q
+```
+
+Set `.env` to match (replace `YOUR_MACOS_USERNAME` with `whoami`):
+
+```
+DATABASE_URL=postgresql+psycopg2://YOUR_MACOS_USERNAME@localhost:5432/findata
+```
+
+**Option B — dedicated app user:**
 
 ```sql
 CREATE DATABASE findata;
@@ -95,7 +105,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO your_user;
 \q
 ```
 
-Load the schema (run from the repo root):
+Set `.env` to:
+
+```
+DATABASE_URL=postgresql+psycopg2://your_user:your_password@localhost:5432/findata
+```
+
+Load the schema (run from the repo root, after either option):
 
 ```bash
 psql -d findata -f fdb.sql
@@ -110,9 +126,9 @@ Order matters — feature SQL depends on data loaded by `scrape.py`:
 ```bash
 source .venv/bin/activate   # if not already active
 
-python scrape.py            # load Excel + CSV → PostgreSQL
+python3.12 scrape.py            # load Excel + CSV → PostgreSQL
 psql -d findata -f fdb_features.sql   # compute features
-python data_prep.py         # export → data/findata.csv
+python3.12 data_prep.py         # export → data/findata.csv
 ```
 
 Then open `modelv1.ipynb` or `modelv2.ipynb` as in the quick start section.
