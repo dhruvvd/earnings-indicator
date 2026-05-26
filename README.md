@@ -31,8 +31,8 @@ This project expects a local database named `findata`. [`fdb.sql`](fdb.sql) crea
 Install and start PostgreSQL:
 
 ```bash
-brew install postgresql@16
-brew services start postgresql@16
+brew install postgresql@18
+brew services start postgresql@18
 ```
 
 Add `psql` to your PATH if Homebrew prompts you to (it prints the exact command after install).
