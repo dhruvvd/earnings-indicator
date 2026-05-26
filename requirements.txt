@@ -1,10 +1,9 @@
 torch==2.9.1
 pandas==2.3.3
 numpy==2.4.0
-openbb==4.5.0
 SQLAlchemy==2.0.45
 psycopg2-binary==2.9.11
 openpyxl==3.1.5
-yfinance==0.2.66
 ipykernel==7.1.0
+jupyter==1.1.1
 python-dotenv==1.2.1

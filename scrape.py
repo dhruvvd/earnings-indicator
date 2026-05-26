@@ -1,9 +1,4 @@
 import pandas as pd
-from openbb import obb
-from openbb_core.provider.standard_models.analyst_estimates import (
-    AnalystEstimatesData,
-    AnalystEstimatesQueryParams,
-)
 import openpyxl
 from sqlalchemy import create_engine, Integer, BigInteger, String, Float
 import warnings
@@ -26,6 +21,7 @@ tickers = [
 ]
 
 #all table values in millions of dollars for financial statements
+# company_info() uses OpenBB; tickers are seeded via fdb.sql instead
 """
 mapping = {
     "ticker": String(10),
@@ -58,6 +54,7 @@ company_df.to_sql(
     dtype=mapping
 )
 
+"""
 mapping = {
     "ticker": String(10),
     "fiscal_period": String(10),
@@ -286,4 +283,3 @@ estimates.to_sql(
     index=False,
     dtype=mapping
 )
-"""
