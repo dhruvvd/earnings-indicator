@@ -12,6 +12,7 @@ Install these before cloning (macOS examples use [Homebrew](https://brew.sh/)):
 | [Git LFS](https://git-lfs.com/) | Download `eps_estimate.csv` (~416 MB) |
 | Python 3.12 | Virtualenv and dependencies |
 | PostgreSQL 14+ | Full ETL pipeline only (not needed for notebooks-only setup) |
+| [PostgreSQL extension](https://marketplace.visualstudio.com/items?itemName=ckolkman.vsc-postgresql) | Run SQL in Cursor/VS Code (full pipeline only; replaces terminal `psql`) |
 
 ```bash
 # macOS examples
@@ -63,27 +64,32 @@ Same as quick start steps above, then copy the env template (you'll fill in `DAT
 cp .env.example .env
 ```
 
-### 2. PostgreSQL (macOS / Homebrew)
+### 2. PostgreSQL (macOS / Homebrew + Cursor/VS Code)
 
 [`fdb.sql`](fdb.sql) creates tables and seeds ticker rows. [`fdb_features.sql`](fdb_features.sql) computes features **after** raw data is loaded.
+
+Start the database server:
 
 ```bash
 brew services start postgresql@18
 ```
 
-Add `psql` to your PATH if Homebrew prints instructions after install.
+Install the **PostgreSQL** extension in Cursor or VS Code ([marketplace link](https://marketplace.visualstudio.com/items?itemName=ckolkman.vsc-postgresql)). All SQL below is run through the extension — no terminal `psql` required.
 
-Create the database (and optionally a dedicated app user):
+#### Connect in Cursor/VS Code
 
-```bash
-psql postgres
-```
+1. Open the Command Palette (`Cmd+Shift+P`) → **PostgreSQL: Add Connection**
+2. Use your macOS username (output of `whoami`), host `localhost`, port `5432`, database `postgres` (the default admin DB)
+3. Leave password blank for typical local Homebrew installs
+
+#### Create the database
+
+Open a new SQL editor (Command Palette → **PostgreSQL: New Query**), connect to `postgres`, and run:
 
 **Option A — use your macOS user (simplest):**
 
 ```sql
 CREATE DATABASE findata;
-\q
 ```
 
 Set `.env` to match (replace `YOUR_MACOS_USERNAME` with `whoami`):
@@ -98,11 +104,14 @@ DATABASE_URL=postgresql+psycopg2://YOUR_MACOS_USERNAME@localhost:5432/findata
 CREATE DATABASE findata;
 CREATE USER your_user WITH PASSWORD 'your_password';
 GRANT ALL PRIVILEGES ON DATABASE findata TO your_user;
-\c findata
+```
+
+Then add a second connection in the extension pointing at database `findata`, open a new query, and run:
+
+```sql
 GRANT ALL ON SCHEMA public TO your_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO your_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO your_user;
-\q
 ```
 
 Set `.env` to:
@@ -111,13 +120,25 @@ Set `.env` to:
 DATABASE_URL=postgresql+psycopg2://your_user:your_password@localhost:5432/findata
 ```
 
-Load the schema (run from the repo root, after either option):
+#### Load the schema
+
+1. Switch your extension connection to the `findata` database (or add a `findata` connection)
+2. Open [`fdb.sql`](fdb.sql) in the editor
+3. Run the entire file (select all → **PostgreSQL: Execute Query**, or use the extension's run command on the active file)
+
+You will run [`fdb_features.sql`](fdb_features.sql) the same way in step 3, after `scrape.py`.
+
+<details>
+<summary>Terminal alternative (<code>psql</code>)</summary>
 
 ```bash
+psql postgres -c "CREATE DATABASE findata;"
 psql -d findata -f fdb.sql
+# after scrape.py:
+psql -d findata -f fdb_features.sql
 ```
 
-If `psql -d findata` fails, connect explicitly: `psql -h localhost -U $(whoami) -d findata`.
+</details>
 
 ### 3. Run the pipeline
 
@@ -127,7 +148,11 @@ Order matters — feature SQL depends on data loaded by `scrape.py`:
 source .venv/bin/activate   # if not already active
 
 python3.12 scrape.py            # load Excel + CSV → PostgreSQL
-psql -d findata -f fdb_features.sql   # compute features
+```
+
+After `scrape.py` finishes, open [`fdb_features.sql`](fdb_features.sql) in Cursor/VS Code and run the entire file through the PostgreSQL extension (connected to `findata`). Then export:
+
+```bash
 python3.12 data_prep.py         # export → data/findata.csv
 ```
 
@@ -144,10 +169,9 @@ modelv2.ipynb      →  LSTM sequence model
 
 ### Re-running the pipeline
 
-`scrape.py` appends rows on each run. To reload from scratch:
+`scrape.py` appends rows on each run. To reload from scratch, run this in a PostgreSQL extension query (connected to `findata`):
 
 ```sql
--- in psql -d findata
 TRUNCATE financial_statements, analyst_estimates RESTART IDENTITY CASCADE;
 ```
 
@@ -175,7 +199,8 @@ Then repeat step 3 (`scrape.py` → `fdb_features.sql` → `data_prep.py`). `fdb
 |---------|-----|
 | `eps_estimate.csv` is tiny / scrape fails reading CSV | Run `git lfs install && git lfs pull` |
 | `KeyError: 'DATABASE_URL'` | Copy `.env.example` to `.env` and set `DATABASE_URL` |
-| FK violation on `companies` | Run `psql -d findata -f fdb.sql` before `scrape.py` |
-| Empty `data/findata.csv` after export | Run `fdb_features.sql` **after** `scrape.py`, not before |
+| FK violation on `companies` | Run [`fdb.sql`](fdb.sql) through the PostgreSQL extension before `scrape.py` |
+| Empty `data/findata.csv` after export | Run [`fdb_features.sql`](fdb_features.sql) **after** `scrape.py`, not before |
 | Permission denied inserting rows | Grant schema/table permissions (see PostgreSQL step above) |
+| Extension can't connect | Confirm `brew services start postgresql@18` and use your macOS username with a blank password |
 | `python` not found | Use `python3.12` instead |
